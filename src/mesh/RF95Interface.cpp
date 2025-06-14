@@ -9,6 +9,9 @@
 #include "PortduinoGlue.h"
 #endif
 
+#if ARCH_PORTDUINO
+#define RF95_MAX_POWER settingsMap[rf95_max_power]
+#endif
 #ifndef RF95_MAX_POWER
 #define RF95_MAX_POWER 20
 #endif
@@ -119,10 +122,10 @@ bool RF95Interface::init()
     power = dacDbValues.db;
 #endif
 
+    limitPower();
+
     if (power > RF95_MAX_POWER) // This chip has lower power limits than some
         power = RF95_MAX_POWER;
-
-    limitPower();
 
     iface = lora = new RadioLibRF95(&module);
 

@@ -14,6 +14,9 @@ bool NodeInfoModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, mes
 {
     auto p = *pptr;
 
+    // Coerce user.id to be derived from the node number
+    snprintf(p.id, sizeof(p.id), "!%08x", getFrom(&mp));
+
     bool hasChanged = nodeDB->updateUser(getFrom(&mp), p, mp.channel);
 
     bool wasBroadcast = isBroadcast(mp.to);
@@ -86,6 +89,11 @@ meshtastic_MeshPacket *NodeInfoModule::allocReply()
             u.public_key.bytes[0] = 0;
             u.public_key.size = 0;
         }
+        // Coerce unmessagable for Repeater role
+        if (u.role == meshtastic_Config_DeviceConfig_Role_REPEATER) {
+            u.has_is_unmessagable = true;
+            u.is_unmessagable = true;
+        }
 
         LOG_INFO("Send owner %s/%s/%s", u.id, u.long_name, u.short_name);
         lastSentToMesh = millis();
@@ -97,8 +105,9 @@ NodeInfoModule::NodeInfoModule()
     : ProtobufModule("nodeinfo", meshtastic_PortNum_NODEINFO_APP, &meshtastic_User_msg), concurrency::OSThread("NodeInfo")
 {
     isPromiscuous = true; // We always want to update our nodedb, even if we are sniffing on others
-    setIntervalFromNow(30 *
-                       1000); // Send our initial owner announcement 30 seconds after we start (to give network time to setup)
+
+    setIntervalFromNow(setStartDelay()); // Send our initial owner announcement 30 seconds
+                                         // after we start (to give network time to setup)
 }
 
 int32_t NodeInfoModule::runOnce()

@@ -8,7 +8,6 @@
 #define I2C_SCL SCL
 
 // Display (E-Ink)
-#define USE_EINK
 #define PIN_EINK_CS 3
 #define PIN_EINK_BUSY 6
 #define PIN_EINK_DC 4
@@ -31,7 +30,6 @@
 #define ADC_CHANNEL ADC1_GPIO7_CHANNEL
 #define ADC_MULTIPLIER 4.9 * 1.03
 #define ADC_ATTENUATION ADC_ATTEN_DB_2_5
-#define HAS_32768HZ
 
 // LoRa
 #define USE_SX1262

@@ -41,6 +41,9 @@
 #define USE_XPT2046 1
 #define TOUCH_CS 38
 
+#define USE_POWERSAVE
+#define SLEEP_TIME 180
+
 #define HAS_GPS                                                                                                                  \
     0 // the unphone doesn't have a gps module by default (though
       // GPS featherwing -- https://www.adafruit.com/product/3133
@@ -48,7 +51,7 @@
 #undef GPS_RX_PIN
 #undef GPS_TX_PIN
 
-// #define HAS_SDCARD 1 // causes hang if defined
+#define SD_SPI_FREQUENCY 25000000
 #define SDCARD_CS 43
 
 #define LED_PIN 13     // the red part of the RGB LED
