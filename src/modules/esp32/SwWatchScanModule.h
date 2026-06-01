@@ -37,6 +37,13 @@ class SwWatchScanModule : public SinglePortModule,
     void garminSetIntervalMs(uint32_t ms);  // set + persist forward interval
 #endif
 
+    // sw_watch device allow-list API (which heard devices forward to the mesh),
+    // driven from the Watch menu. Index runs over currently-heard (used) slots.
+    uint8_t swWatchHeardCount();
+    const char *swWatchHeardId(uint8_t i);  // 16-hex device id of heard device i
+    bool swWatchHeardEnabled(uint8_t i);    // is heard device i forwarding?
+    void swWatchToggleEnabled(uint8_t i);   // toggle forward on/off + persist
+
   protected:
     virtual int32_t runOnce() override;
 

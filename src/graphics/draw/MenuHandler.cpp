@@ -581,8 +581,8 @@ void menuHandler::garminMenu()
     if (!swWatchScanModule)
         return;
     const int MAXP = 8;
-    static const char *opts[4 + MAXP];
-    static int enums[4 + MAXP];
+    static const char *opts[6 + MAXP];
+    static int enums[6 + MAXP];
     static char labels[MAXP][24];
     static char ivLabel[20];
     int n = 0;
@@ -593,6 +593,8 @@ void menuHandler::garminMenu()
     snprintf(ivLabel, sizeof(ivLabel), "TX interval: %lus", (unsigned long)(swWatchScanModule->garminGetIntervalMs() / 1000));
     opts[n] = ivLabel;
     enums[n++] = 3;
+    opts[n] = "sw_watch devices";
+    enums[n++] = 4;
     uint8_t pc = swWatchScanModule->garminPairedCount();
     for (uint8_t i = 0; i < pc && i < MAXP; i++) {
         snprintf(labels[i], sizeof(labels[i]), "Forget %s", swWatchScanModule->garminPairedGet(i));
@@ -620,8 +622,44 @@ void menuHandler::garminMenu()
         } else if (sel == 3) {
             menuQueue = garmin_interval_menu;
             screen->runNow();
+        } else if (sel == 4) {
+            menuQueue = swwatch_device_menu;
+            screen->runNow();
         } else if (sel >= 100) {
             swWatchScanModule->garminPairedRemove(sel - 100);
+        }
+    };
+    screen->showOverlayBanner(b);
+}
+
+void menuHandler::swWatchDeviceMenu()
+{
+    if (!swWatchScanModule)
+        return;
+    const int MAXD = 4;
+    static const char *opts[1 + MAXD];
+    static char labels[MAXD][24];
+    int n = 0;
+    opts[n++] = "Back";
+    uint8_t hc = swWatchScanModule->swWatchHeardCount();
+    if (hc > MAXD)
+        hc = MAXD;
+    for (uint8_t i = 0; i < hc; i++) {
+        // [x] = forwarding enabled, [ ] = heard but muted. Show last 4 hex of id.
+        const char *id = swWatchScanModule->swWatchHeardId(i);
+        const char *tail = (strlen(id) >= 4) ? id + strlen(id) - 4 : id;
+        snprintf(labels[i], sizeof(labels[i]), "[%c] ..%s", swWatchScanModule->swWatchHeardEnabled(i) ? 'x' : ' ', tail);
+        opts[n++] = labels[i];
+    }
+    BannerOverlayOptions b;
+    b.message = hc ? "sw_watch devices" : "No sw_watch heard";
+    b.optionsArrayPtr = opts;
+    b.optionsCount = n;
+    b.bannerCallback = [](int sel) -> void {
+        if (swWatchScanModule && sel >= 1) {
+            swWatchScanModule->swWatchToggleEnabled(sel - 1);
+            menuQueue = swwatch_device_menu; // reopen to show the toggled state
+            screen->runNow();
         }
     };
     screen->showOverlayBanner(b);
@@ -1796,6 +1834,9 @@ void menuHandler::handleMenuSwitch(OLEDDisplay *display)
         break;
     case garmin_interval_menu:
         garminIntervalMenu();
+        break;
+    case swwatch_device_menu:
+        swWatchDeviceMenu();
         break;
 #endif
     case throttle_message:

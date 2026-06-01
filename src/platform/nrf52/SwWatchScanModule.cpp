@@ -7,9 +7,12 @@
 #include "modules/esp32/SwWatchScanModule.h"
 #include <bluefruit.h>
 #include <string.h>
-#ifdef BLE_HRM_CONNECT
-#include "modules/esp32/GarminPairStore.h"
-#endif
+#include "modules/esp32/GarminPairStore.h" // garmin pair list + sw_watch allow-list
+
+static inline void swwIdHex(const uint8_t *id, char *out)
+{
+    snprintf(out, 17, "%02x%02x%02x%02x%02x%02x%02x%02x", id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
+}
 #if HAS_SCREEN
 #include "graphics/Screen.h"
 #include "graphics/ScreenFonts.h"
@@ -313,6 +316,7 @@ int32_t SwWatchScanModule::runOnce()
         Bluefruit.Scanner.start(0);             // 0 = continuous, never stop
         scanning = true;
         LOG_INFO("sw_watch scanner started (passive, Bluefruit)");
+        swwEnabledLoad(); // restore which sw_watch devices forward to the mesh
 #ifdef BLE_HRM_CONNECT
         garminPairLoad();
         garminIntervalLoad();
@@ -365,6 +369,10 @@ int32_t SwWatchScanModule::runOnce()
     for (int i = 0; i < SWWATCH_MAX_DEVICES; i++) {
         WatchSlot &w = slots[i];
         if (!w.used || !w.coreReady)
+            continue;
+        char idhex[17];
+        swwIdHex(w.id, idhex);
+        if (!swwEnabledContains(idhex)) // only forward devices enabled from the menu
             continue;
         if (w.hasSent && (now - w.lastSendMs) < FWD_INTERVAL_MS)
             continue;
@@ -499,6 +507,53 @@ void SwWatchScanModule::garminPairedRemove(uint8_t i) { garminPairRemoveAt(i); }
 void SwWatchScanModule::garminPairedClearAll() { garminPairClear(); }
 uint32_t SwWatchScanModule::garminGetIntervalMs() { return garminIntervalGet(); }
 void SwWatchScanModule::garminSetIntervalMs(uint32_t ms) { garminIntervalSet(ms); }
+#endif
+
+// --- sw_watch allow-list API (index over currently-heard/used slots) ---------
+static int swwUsedSlotIndex(uint8_t nth)
+{
+    uint8_t seen = 0;
+    for (int i = 0; i < SWWATCH_MAX_DEVICES; i++)
+        if (slots[i].used && seen++ == nth)
+            return i;
+    return -1;
+}
+uint8_t SwWatchScanModule::swWatchHeardCount()
+{
+    uint8_t c = 0;
+    for (int i = 0; i < SWWATCH_MAX_DEVICES; i++)
+        if (slots[i].used)
+            c++;
+    return c;
+}
+const char *SwWatchScanModule::swWatchHeardId(uint8_t i)
+{
+    static char buf[17];
+    int s = swwUsedSlotIndex(i);
+    if (s < 0)
+        return "";
+    swwIdHex(slots[s].id, buf);
+    return buf;
+}
+bool SwWatchScanModule::swWatchHeardEnabled(uint8_t i)
+{
+    char buf[17];
+    int s = swwUsedSlotIndex(i);
+    if (s < 0)
+        return false;
+    swwIdHex(slots[s].id, buf);
+    return swwEnabledContains(buf);
+}
+void SwWatchScanModule::swWatchToggleEnabled(uint8_t i)
+{
+    char buf[17];
+    int s = swwUsedSlotIndex(i);
+    if (s < 0)
+        return;
+    swwIdHex(slots[s].id, buf);
+    swwEnabledToggle(buf);
+}
+#ifdef BLE_HRM_CONNECT
 #if HAS_SCREEN
 bool SwWatchScanModule::onFrameSelectPress()
 {

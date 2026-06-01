@@ -46,12 +46,14 @@ class menuHandler
         node_name_length_menu,
         FrameToggles,
         garmin_menu,
-        garmin_interval_menu
+        garmin_interval_menu,
+        swwatch_device_menu
     };
     static screenMenus menuQueue;
 
     static void garminMenu();         // Garmin HR pairing: pair new / list / forget
     static void garminIntervalMenu(); // Garmin/sw_watch text-forward interval picker
+    static void swWatchDeviceMenu();  // choose which sw_watch devices forward to mesh
 
     static void OnboardMessage();
     static void LoraRegionPicker(uint32_t duration = 30000);

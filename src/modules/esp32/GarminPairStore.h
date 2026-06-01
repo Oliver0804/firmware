@@ -1,10 +1,11 @@
 #pragma once
 #include "configuration.h"
 
-#if (defined(ARCH_ESP32) || defined(ARCH_NRF52)) && defined(BLE_HRM_CONNECT)
+#if (defined(ARCH_ESP32) || defined(ARCH_NRF52)) && (defined(SWWATCH_SCAN) || defined(BLE_HRM_CONNECT))
 #include "FSCommon.h"
 #include <string.h>
 
+#ifdef BLE_HRM_CONNECT
 // Header-only persistent store for paired Garmin (BLE HR) MAC addresses.
 // One MAC ("aa:bb:cc:dd:ee:ff") per line in /prefs/garmin.dat. Header-only with
 // internal-linkage state: only one platform's SwWatchScanModule TU uses it per
@@ -126,4 +127,78 @@ static inline void garminIntervalSet(uint32_t ms)
     f.close();
 #endif
 }
+#endif // BLE_HRM_CONNECT
+
+#ifdef SWWATCH_SCAN
+// --- sw_watch device allow-list: which broadcast devices forward to the mesh ---
+// Stored as 16-hex device ids (8 bytes), one per line in /prefs/swwatch.dat.
+// Empty list = forward nothing (devices must be enabled from the Watch menu).
+#define SWW_MAX_ENABLED 8
+#define SWW_ID_LEN 17 // 16 hex + NUL
+static const char *SWW_ENABLED_FILE = "/prefs/swwatch.dat";
+static char swwEnabled[SWW_MAX_ENABLED][SWW_ID_LEN];
+static uint8_t swwEnabledCount = 0;
+
+static inline bool swwEnabledContains(const char *id)
+{
+    for (uint8_t i = 0; i < swwEnabledCount; i++)
+        if (strcasecmp(swwEnabled[i], id) == 0)
+            return true;
+    return false;
+}
+
+static inline void swwEnabledSave()
+{
+#ifdef FSCom
+    auto f = FSCom.open(SWW_ENABLED_FILE, FILE_O_WRITE);
+    if (!f)
+        return;
+    for (uint8_t i = 0; i < swwEnabledCount; i++) {
+        f.print(swwEnabled[i]);
+        f.print("\n");
+    }
+    f.close();
+#endif
+}
+
+static inline void swwEnabledLoad()
+{
+#ifdef FSCom
+    swwEnabledCount = 0;
+    auto f = FSCom.open(SWW_ENABLED_FILE, FILE_O_READ);
+    if (!f)
+        return;
+    while (f.available() && swwEnabledCount < SWW_MAX_ENABLED) {
+        char line[SWW_ID_LEN];
+        size_t n = f.readBytesUntil('\n', line, sizeof(line) - 1);
+        line[n] = 0;
+        while (n && (line[n - 1] == '\r' || line[n - 1] == ' '))
+            line[--n] = 0;
+        if (n == 16)
+            strncpy(swwEnabled[swwEnabledCount++], line, SWW_ID_LEN - 1);
+    }
+    f.close();
+#endif
+}
+
+// Toggle a device id in the allow-list; persists. Returns the new enabled state.
+static inline bool swwEnabledToggle(const char *id)
+{
+    for (uint8_t i = 0; i < swwEnabledCount; i++) {
+        if (strcasecmp(swwEnabled[i], id) == 0) { // remove
+            for (uint8_t j = i; j + 1 < swwEnabledCount; j++)
+                strncpy(swwEnabled[j], swwEnabled[j + 1], SWW_ID_LEN - 1);
+            swwEnabledCount--;
+            swwEnabledSave();
+            return false;
+        }
+    }
+    if (swwEnabledCount < SWW_MAX_ENABLED) { // add
+        strncpy(swwEnabled[swwEnabledCount++], id, SWW_ID_LEN - 1);
+        swwEnabledSave();
+        return true;
+    }
+    return false;
+}
+#endif // SWWATCH_SCAN
 #endif
