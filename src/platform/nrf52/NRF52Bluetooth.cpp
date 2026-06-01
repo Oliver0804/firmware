@@ -246,7 +246,13 @@ void NRF52Bluetooth::setup()
     LOG_INFO("Init the Bluefruit nRF52 module");
     Bluefruit.autoConnLed(false);
     Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
+#if defined(SWWATCH_SCAN) || defined(BLE_HRM_CONNECT)
+    // Reserve a central-role slot so the SwWatch passive scanner (observer) or the
+    // BLE-HRM central connection can run alongside the peripheral (phone) link.
+    Bluefruit.begin(1, 1);
+#else
     Bluefruit.begin();
+#endif
     // Clear existing data.
     Bluefruit.Advertising.stop();
     Bluefruit.Advertising.clearData();

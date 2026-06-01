@@ -44,9 +44,14 @@ class menuHandler
         trace_route_menu,
         throttle_message,
         node_name_length_menu,
-        FrameToggles
+        FrameToggles,
+        garmin_menu,
+        garmin_interval_menu
     };
     static screenMenus menuQueue;
+
+    static void garminMenu();         // Garmin HR pairing: pair new / list / forget
+    static void garminIntervalMenu(); // Garmin/sw_watch text-forward interval picker
 
     static void OnboardMessage();
     static void LoraRegionPicker(uint32_t duration = 30000);

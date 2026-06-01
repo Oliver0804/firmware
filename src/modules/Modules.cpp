@@ -88,9 +88,22 @@
 #if !MESHTASTIC_EXCLUDE_PAXCOUNTER
 #include "modules/esp32/PaxcounterModule.h"
 #endif
+#ifdef SWWATCH_SCAN
+#include "modules/esp32/SwWatchScanModule.h"
+#endif
+#ifdef BLE_HRM_CONNECT
+#include "modules/esp32/BleHrmConnectModule.h"
+#endif
 #if !MESHTASTIC_EXCLUDE_STOREFORWARD
 #include "modules/StoreForwardModule.h"
 #endif
+#endif
+
+#if defined(ARCH_NRF52) && defined(SWWATCH_SCAN)
+#include "modules/esp32/SwWatchScanModule.h"
+#endif
+#if defined(ARCH_NRF52) && defined(BLE_HRM_CONNECT)
+#include "modules/esp32/BleHrmConnectModule.h"
 #endif
 
 #if !MESHTASTIC_EXCLUDE_EXTERNALNOTIFICATION
@@ -283,6 +296,20 @@ void setupModules()
         paxcounterModule = new PaxcounterModule();
     }
 #endif
+#ifdef SWWATCH_SCAN
+    swWatchScanModule = new SwWatchScanModule();
+#endif
+#if defined(BLE_HRM_CONNECT) && !defined(SWWATCH_SCAN)
+    // When SWWATCH_SCAN is also on, SwWatchScanModule owns the scanner and the
+    // Garmin link (one scanner only); the standalone HRM module is for Garmin-only builds.
+    bleHrmConnectModule = new BleHrmConnectModule();
+#endif
+#endif
+#if defined(ARCH_NRF52) && defined(SWWATCH_SCAN)
+    swWatchScanModule = new SwWatchScanModule();
+#endif
+#if defined(ARCH_NRF52) && defined(BLE_HRM_CONNECT) && !defined(SWWATCH_SCAN)
+    bleHrmConnectModule = new BleHrmConnectModule();
 #endif
 #if defined(ARCH_ESP32) || defined(ARCH_PORTDUINO)
 #if !MESHTASTIC_EXCLUDE_STOREFORWARD

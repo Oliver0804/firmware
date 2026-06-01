@@ -84,6 +84,9 @@ class MeshModule
     virtual void drawFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y) { return; }
     virtual bool isRequestingFocus();                          // Checked by screen, when regenerating frameset
     virtual bool interceptingKeyboardInput() { return false; } // Can screen use keyboard for nav, or is module handling input?
+    // Called when SELECT is pressed while this module's UI frame is showing. Return
+    // true if handled (e.g. opened a menu). Lets a module attach a context menu.
+    virtual bool onFrameSelectPress() { return false; }
 #endif
   protected:
     const char *name;

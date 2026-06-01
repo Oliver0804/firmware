@@ -1632,6 +1632,11 @@ int Screen::handleInputEvent(const InputEvent *event)
                     menuHandler::nodeListMenu();
                 } else if (this->ui->getUiState()->currentFrame == framesetInfo.positions.wifi) {
                     menuHandler::wifiBaseMenu();
+                } else {
+                    // Module frames: let the module open its own context menu (e.g. Garmin pairing).
+                    uint8_t cf = this->ui->getUiState()->currentFrame;
+                    if (cf < moduleFrames.size() && moduleFrames[cf])
+                        moduleFrames[cf]->onFrameSelectPress();
                 }
             } else if (event->inputEvent == INPUT_BROKER_BACK) {
                 showPrevFrame();

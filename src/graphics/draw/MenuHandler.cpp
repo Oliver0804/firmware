@@ -16,6 +16,9 @@
 #include "mesh/MeshTypes.h"
 #include "modules/AdminModule.h"
 #include "modules/CannedMessageModule.h"
+#ifdef BLE_HRM_CONNECT
+#include "modules/esp32/SwWatchScanModule.h"
+#endif
 #include "modules/KeyVerificationModule.h"
 
 #include "modules/TraceRouteModule.h"
@@ -572,15 +575,96 @@ void menuHandler::textMessageBaseMenu()
     screen->showOverlayBanner(bannerOptions);
 }
 
+#ifdef BLE_HRM_CONNECT
+void menuHandler::garminMenu()
+{
+    if (!swWatchScanModule)
+        return;
+    const int MAXP = 8;
+    static const char *opts[4 + MAXP];
+    static int enums[4 + MAXP];
+    static char labels[MAXP][24];
+    static char ivLabel[20];
+    int n = 0;
+    opts[n] = "Back";
+    enums[n++] = 0;
+    opts[n] = "Pair new device";
+    enums[n++] = 1;
+    snprintf(ivLabel, sizeof(ivLabel), "TX interval: %lus", (unsigned long)(swWatchScanModule->garminGetIntervalMs() / 1000));
+    opts[n] = ivLabel;
+    enums[n++] = 3;
+    uint8_t pc = swWatchScanModule->garminPairedCount();
+    for (uint8_t i = 0; i < pc && i < MAXP; i++) {
+        snprintf(labels[i], sizeof(labels[i]), "Forget %s", swWatchScanModule->garminPairedGet(i));
+        opts[n] = labels[i];
+        enums[n++] = 100 + i;
+    }
+    if (pc > 0) {
+        opts[n] = "Clear all";
+        enums[n++] = 2;
+    }
+
+    BannerOverlayOptions b;
+    b.message = "Garmin HR";
+    b.optionsArrayPtr = opts;
+    b.optionsEnumPtr = enums;
+    b.optionsCount = n;
+    b.bannerCallback = [](int sel) -> void {
+        if (!swWatchScanModule)
+            return;
+        if (sel == 1) {
+            swWatchScanModule->startGarminPairing();
+            screen->showSimpleBanner("Scanning for Garmin...\nHold on ~6s", 7000);
+        } else if (sel == 2) {
+            swWatchScanModule->garminPairedClearAll();
+        } else if (sel == 3) {
+            menuQueue = garmin_interval_menu;
+            screen->runNow();
+        } else if (sel >= 100) {
+            swWatchScanModule->garminPairedRemove(sel - 100);
+        }
+    };
+    screen->showOverlayBanner(b);
+}
+
+void menuHandler::garminIntervalMenu()
+{
+    if (!swWatchScanModule)
+        return;
+    static const char *opts[] = {"Back", "10s", "30s", "60s", "120s", "300s"};
+    static const uint32_t vals[] = {0, 10000, 30000, 60000, 120000, 300000};
+    BannerOverlayOptions b;
+    b.message = "TX interval";
+    b.optionsArrayPtr = opts;
+    b.optionsCount = 6;
+    b.bannerCallback = [](int sel) -> void {
+        if (swWatchScanModule && sel >= 1 && sel <= 5)
+            swWatchScanModule->garminSetIntervalMs(vals[sel]);
+    };
+    // Preselect the current value if it matches a preset.
+    uint32_t cur = swWatchScanModule->garminGetIntervalMs();
+    for (int i = 1; i <= 5; i++)
+        if (vals[i] == cur)
+            b.InitialSelected = i;
+    screen->showOverlayBanner(b);
+}
+#endif
+
 void menuHandler::systemBaseMenu()
 {
-    enum optionsNumbers { Back, Notifications, ScreenOptions, Bluetooth, PowerMenu, FrameToggles, Test, enumEnd };
+    enum optionsNumbers { Back, Notifications, ScreenOptions, Bluetooth, PowerMenu, FrameToggles, Test, Garmin, enumEnd };
     static const char *optionsArray[enumEnd] = {"Back"};
     static int optionsEnumArray[enumEnd] = {Back};
     int options = 1;
 
     optionsArray[options] = "Notifications";
     optionsEnumArray[options++] = Notifications;
+#ifdef BLE_HRM_CONNECT
+    if (swWatchScanModule) {
+        optionsArray[options] = "Garmin HR";
+        optionsEnumArray[options++] = Garmin;
+    }
+#endif
 #if defined(ST7789_CS) || defined(ST7796_CS) || defined(USE_OLED) || defined(USE_SSD1306) || defined(USE_SH1106) ||              \
     defined(USE_SH1107) || defined(HELTEC_MESH_NODE_T114) || defined(HELTEC_VISION_MASTER_T190) || HAS_TFT
     optionsArray[options] = "Screen Options";
@@ -635,6 +719,11 @@ void menuHandler::systemBaseMenu()
         } else if (selected == Bluetooth) {
             menuQueue = bluetooth_toggle_menu;
             screen->runNow();
+#ifdef BLE_HRM_CONNECT
+        } else if (selected == Garmin) {
+            menuQueue = garmin_menu;
+            screen->runNow();
+#endif
         } else if (selected == Back && !test_enabled) {
             test_count++;
             if (test_count > 4) {
@@ -1701,6 +1790,14 @@ void menuHandler::handleMenuSwitch(OLEDDisplay *display)
     case FrameToggles:
         FrameToggles_menu();
         break;
+#ifdef BLE_HRM_CONNECT
+    case garmin_menu:
+        garminMenu();
+        break;
+    case garmin_interval_menu:
+        garminIntervalMenu();
+        break;
+#endif
     case throttle_message:
         screen->showSimpleBanner("Too Many Attempts\nTry again in 60 seconds.", 5000);
         break;
