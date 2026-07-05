@@ -1,0 +1,64 @@
+# start of Meshtastic configure yaml
+canned_messages: Hi|Bye|Yes|No|Ok
+channel_url: https://meshtastic.org/e/#CgsSAQEoATABOgIIIAowEiCKwOEes2kk-UZfcYEkFfqSO4rspA2nhnQzs5MOmdfk3hoGTWVzaHR3KAEwAToACjsSIMtR3IlYKZeR84dOSiVHv7pllB_F4Rt1I0da72R31BxVGgpTaWduYWxUZXN0JQIAAAAoATABOgIIIAo7EiDLaOd_zp9Ol__gAUB_6YLBvNGjGkJXQ_3R2omjT7D9JhoKRW1lcmdlbmN5ISUDAAAAKAEwAToCCCAKLRIgHe3VNIzgvm07GNUJYBPCf3B6zjGJUx5yHEbwMq301_caCVdhdGNoRGF0YRIRCAEQBDgIQAZIAVAWWAHIBgE
+config:
+  bluetooth:
+    enabled: true
+    fixedPin: 123456
+  device:
+    disableTripleClick: true
+    nodeInfoBroadcastSecs: 10800
+    tzdef: GMT-8
+  display:
+    screenOnSecs: 600
+  lora:
+    channelNum: 1
+    configOkToMqtt: true
+    hopLimit: 6
+    modemPreset: MEDIUM_FAST
+    region: TW
+    sx126xRxBoostedGain: false
+    txEnabled: true
+    txPower: 22
+    usePreset: true
+  network:
+    ntpServer: meshtastic.pool.ntp.org
+  position:
+    broadcastSmartMinimumDistance: 100
+    broadcastSmartMinimumIntervalSecs: 30
+    gpsMode: NOT_PRESENT
+    gpsUpdateInterval: 120
+    positionBroadcastSecs: 900
+    positionBroadcastSmartEnabled: true
+    positionFlags: 811
+  power:
+    lsSecs: 300
+    minWakeSecs: 10
+    sdsSecs: 4294967295
+    waitBluetoothSecs: 60
+  security:
+    privateKey: base64:UDehKojzb75D4pgAP39FXKE9x6CWjI5FzZvxMnIa7WI=
+    publicKey: base64:8+TYRd3Q+IGKTDR1vhxZWe/MYD5to5yEMm0gNKdd9EM=
+    serialEnabled: true
+module_config:
+  ambientLighting:
+    blue: 14
+    current: 10
+    green: 244
+    red: 242
+  cannedMessage:
+    enabled: true
+  detectionSensor:
+    detectionTriggerType: LOGIC_HIGH
+    minimumBroadcastSecs: 45
+  mqtt:
+    address: mqtt.meshtastic.org
+    encryptionEnabled: true
+    password: large4cats
+    root: msh
+    username: meshdev
+  telemetry:
+    deviceUpdateInterval: 2147483647
+owner: 'Meshtastic '
+owner_short: 0822
+
