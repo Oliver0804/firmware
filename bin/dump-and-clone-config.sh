@@ -58,8 +58,10 @@ export PATH="${HOME}/.platformio/penv/bin:${PATH}"
 command -v meshtastic >/dev/null || { echo "meshtastic CLI 不在 PATH"; exit 1; }
 command -v esptool.py >/dev/null || { echo "esptool.py 不在 PATH（試試把 ~/.platformio/penv/bin 加進 PATH）"; exit 1; }
 
-echo "==> [1/6] 從 $SRC_PORT 讀 config"
+echo "==> [1/6] 從 $SRC_PORT 讀 config + 完整 channel 表"
 meshtastic --port "$SRC_PORT" --export-config > "$FULL_YAML"
+SRC_INFO="/tmp/${BOARD}-src-info.txt"
+meshtastic --port "$SRC_PORT" --info > "$SRC_INFO" 2>/dev/null
 wc -l "$FULL_YAML"
 
 echo "==> [2/6] 剝掉 owner / privateKey / publicKey / gpsMode(NOT_PRESENT)"
@@ -107,9 +109,53 @@ echo "==> [6/6] apply config"
 meshtastic --port "$DST_PORT" --configure "$STRIPPED_YAML"
 
 if [ -n "$COMPLETE_URL" ]; then
-    echo "==> 額外用 --seturl 補寫 channel index >= 4"
+    echo "==> 額外用 --seturl 補寫 channel"
     sleep 5
     meshtastic --port "$DST_PORT" --seturl "$COMPLETE_URL"
+fi
+
+# --configure 和 --seturl 目前 (meshtastic-python 2.7.x) 都只寫前 4 條 channel,
+# 手動用 --ch-add 補寫 index >= 4 的 channel。從 $SRC_INFO 解析原始表。
+echo "==> [7/6] 補寫 channel index >= 4 (--configure / --seturl 的已知 gap)"
+python3 - "$SRC_INFO" << 'PY' > /tmp/extra-channels.sh
+import json, re, sys, pathlib
+info = pathlib.Path(sys.argv[1]).read_text()
+in_ch = False
+for line in info.splitlines():
+    if line.startswith("Channels:"):
+        in_ch = True; continue
+    if in_ch:
+        m = re.match(r"\s*Index (\d+):\s+\S+\s+psk=\S+\s+(\{.*\})\s*$", line)
+        if not m:
+            if line.strip() == "" or line.startswith("Primary channel URL"):
+                break
+            continue
+        idx = int(m.group(1))
+        if idx < 4:
+            continue
+        try:
+            ch = json.loads(m.group(2))
+        except json.JSONDecodeError:
+            continue
+        name = ch.get("name", f"ch{idx}")
+        psk_b64 = ch.get("psk", "")
+        uplink = ch.get("uplinkEnabled", True)
+        downlink = ch.get("downlinkEnabled", True)
+        # --ch-add 會把新頻道 append 到下一個空 slot, 然後把 --ch-index 定成該 slot
+        print(f'echo "  + adding channel {idx} {name!r}"')
+        print(f'meshtastic --port "$1" --ch-add {name!r} 2>&1 | tail -1')
+        print('sleep 6')
+        print(f'meshtastic --port "$1" --ch-index {idx} --ch-set psk base64:{psk_b64} 2>&1 | tail -1')
+        if not uplink:
+            print(f'meshtastic --port "$1" --ch-index {idx} --ch-set uplink_enabled false 2>&1 | tail -1')
+        if not downlink:
+            print(f'meshtastic --port "$1" --ch-index {idx} --ch-set downlink_enabled false 2>&1 | tail -1')
+        print('sleep 4')
+PY
+if [ -s /tmp/extra-channels.sh ]; then
+    bash /tmp/extra-channels.sh "$DST_PORT"
+else
+    echo "  (無 index >= 4 頻道, 跳過)"
 fi
 
 echo
